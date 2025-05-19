@@ -771,6 +771,107 @@ export const deleteMediaContentById = async (id) => {
 };
 ```
 
+### Контролери для AnalysisReport
+```js
+import handleAsync from '../utils/handleAsync.js';
+import {
+  getAllReports,
+  getReportById,
+  createReport,
+  updateReportById,
+  deleteReportById,
+} from '../models/reportModel.js';
+import AppError from '../utils/appError.js';
+
+export const getReports = handleAsync(async (req, res) => {
+  const reports = await getAllReports();
+  res.status(200).json({ status: 'success', data: reports });
+});
+
+export const getReport = handleAsync(async (req, res) => {
+  const report = await getReportById(req.params.id);
+  if (!report) throw new AppError('Report not found', 404);
+  res.status(200).json({ status: 'success', data: report });
+});
+
+export const createNewReport = handleAsync(async (req, res) => {
+  const newReport = await createReport(req.body);
+  res.status(201).json({ status: 'success', data: newReport });
+});
+
+export const updateReport = handleAsync(async (req, res) => {
+  const updated = await updateReportById(req.params.id, req.body);
+  res.status(200).json({ status: 'success', data: updated });
+});
+
+export const deleteReport = handleAsync(async (req, res) => {
+  await deleteReportById(req.params.id);
+  res.status(200).json({ status: 'success', message: 'Deleted' });
+});
+
+```
+
+### Роутер для AnalysisReport
+```js
+import express from 'express';
+import {
+  getReports,
+  getReport,
+  createNewReport,
+  updateReport,
+  deleteReport,
+} from '../controllers/reportController.js';
+
+const reportRouter = express.Router();
+
+reportRouter.get('/reports', getReports);
+reportRouter.get('/reports/:id', getReport);
+reportRouter.post('/reports', createNewReport);
+reportRouter.patch('/reports/:id', updateReport);
+reportRouter.delete('/reports/:id', deleteReport);
+
+export default reportRouter;
+```
+
+### Взаємодія з базою даних для AnalysisReport
+```js
+import db from '../config/db.js';
+
+export const getAllReports = async () => {
+  const res = await db.query('SELECT * FROM AnalysisReport');
+  return res.rows;
+};
+
+export const getReportById = async (id) => {
+  const res = await db.query('SELECT * FROM AnalysisReport WHERE id = $1', [id]);
+  return res.rows[0];
+};
+
+export const createReport = async ({ title, body, profile_id }) => {
+  const res = await db.query(
+    `INSERT INTO AnalysisReport (title, body, profile_id) VALUES ($1, $2, $3) RETURNING *`,
+    [title, body, profile_id]
+  );
+  return res.rows[0];
+};
+
+export const updateReportById = async (id, data) => {
+  const fields = Object.keys(data);
+  const values = Object.values(data);
+  const setClause = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
+  const res = await db.query(
+    `UPDATE AnalysisReport SET ${setClause} WHERE id = $${fields.length + 1} RETURNING *`,
+    [...values, id]
+  );
+  return res.rows[0];
+};
+
+export const deleteReportById = async (id) => {
+  const res = await db.query('DELETE FROM AnalysisReport WHERE id = $1 RETURNING *', [id]);
+  return res.rows[0];
+};
+```
+
 ### Мідлвар для обробки помилок
 ```js
 const errorHandler = (err, req, res, next) => {
